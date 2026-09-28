@@ -1,0 +1,229 @@
+import React, { useEffect, useState } from "react";
+import Web3 from "web3";
+import ABI from "./HealthcareABI.json";
+
+const contractAddress = "0xA269C19feE631678EE86BA846250bE04074Ad212";
+
+function App() {
+  const [web3, setWeb3] = useState(null);
+  const [account, setAccount] = useState("");
+  const [contract, setContract] = useState(null);
+
+  // Doctor form
+  const [doctorAddress, setDoctorAddress] = useState("");
+  const [docName, setDocName] = useState("");
+  const [docDesignation, setDocDesignation] = useState("");
+  const [docHospital, setDocHospital] = useState("");
+  const [docDegree, setDocDegree] = useState("");
+  const [docAge, setDocAge] = useState("");
+  const [docSpecialization, setDocSpecialization] = useState("");
+
+  // Patient form
+  const [patientAddress, setPatientAddress] = useState("");
+  const [patientName, setPatientName] = useState("");
+  const [patientAge, setPatientAge] = useState("");
+  const [disease, setDisease] = useState("");
+
+  // Data
+  const [doctorList, setDoctorList] = useState([]);
+  const [result, setResult] = useState("");
+
+  // ---------------- CONNECT METAMASK ----------------
+  useEffect(() => {
+    const connectWallet = async () => {
+      if (!window.ethereum) {
+        alert("Please install MetaMask");
+        return;
+      }
+
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts"
+      });
+
+      const w3 = new Web3(window.ethereum);
+      const hc = new w3.eth.Contract(ABI, contractAddress);
+
+      setWeb3(w3);
+      setAccount(accounts[0]);
+      setContract(hc);
+    };
+
+    connectWallet();
+  }, []);
+
+  // ---------------- LOAD DOCTORS ----------------
+  const loadDoctors = async () => {
+    const count = await contract.methods.getDoctorCount().call();
+    const list = [];
+
+    for (let i = 0; i < count; i++) {
+      const addr = await contract.methods.getDoctorAddress(i).call();
+      const doc = await contract.methods.doctors(addr).call();
+
+      list.push({
+        address: addr,
+        ...doc
+      });
+    }
+
+    setDoctorList(list);
+  };
+
+  useEffect(() => {
+    if (contract) loadDoctors();
+  }, [contract]);
+
+  // ---------------- ADMIN: ADD DOCTOR ----------------
+  const addDoctor = async () => {
+    await contract.methods
+      .addDoctor(
+        doctorAddress,
+        docName,
+        docDesignation,
+        docHospital,
+        docDegree,
+        Number(docAge),
+        docSpecialization
+      )
+      .send({ from: account, gas: 600000 });
+
+    alert("Doctor added successfully");
+    loadDoctors();
+  };
+
+  // ---------------- DOCTOR: ADD PATIENT ----------------
+  const addPatient = async () => {
+    await contract.methods
+      .addPatient(
+        patientAddress,
+        patientName,
+        Number(patientAge),
+        disease
+      )
+      .send({ from: account, gas: 300000 });
+
+    alert("Patient added successfully");
+  };
+
+  // ---------------- PATIENT: VIEW OWN RECORD ----------------
+  const getMyRecord = async () => {
+    const data = await contract.methods.getMyRecord().call({ from: account });
+    setResult(`Name: ${data[0]}, Age: ${data[1]}, Disease: ${data[2]}`);
+  };
+
+  // ---------------- UI ----------------
+  return (
+    <div style={styles.page}>
+      <h1 style={styles.title}>Healthcare Records </h1>
+
+      <p style={styles.account}>
+        Connected Account<br />
+        <span style={styles.address}>{account}</span>
+      </p>
+
+      <div style={styles.container}>
+
+        {/* ADMIN */}
+        <div style={styles.card}>
+          <h2>👨‍💼 Admin Panel</h2>
+
+          <input style={styles.input} placeholder="Doctor Wallet Address" onChange={e => setDoctorAddress(e.target.value)} />
+          <input style={styles.input} placeholder="Name" onChange={e => setDocName(e.target.value)} />
+          <input style={styles.input} placeholder="Designation" onChange={e => setDocDesignation(e.target.value)} />
+          <input style={styles.input} placeholder="Hospital" onChange={e => setDocHospital(e.target.value)} />
+          <input style={styles.input} placeholder="Degree" onChange={e => setDocDegree(e.target.value)} />
+          <input style={styles.input} type="number" placeholder="Age" onChange={e => setDocAge(e.target.value)} />
+          <input style={styles.input} placeholder="Specialization" onChange={e => setDocSpecialization(e.target.value)} />
+
+          <button style={styles.button} onClick={addDoctor}>Add Doctor</button>
+
+          <hr />
+          <h3>Registered Doctors</h3>
+
+          {doctorList.length === 0 && <p>No doctors added yet.</p>}
+
+          {doctorList.map((doc, i) => (
+            <div key={i} style={styles.result}>
+              <p><b>Wallet:</b> {doc.address}</p>
+              <p><b>Name:</b> {doc.name}</p>
+              <p><b>Designation:</b> {doc.designation}</p>
+              <p><b>Hospital:</b> {doc.hospital}</p>
+              <p><b>Degree:</b> {doc.degree}</p>
+              <p><b>Age:</b> {doc.age}</p>
+              <p><b>Specialization:</b> {doc.specialization}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* DOCTOR */}
+        <div style={styles.card}>
+          <h2>👨‍⚕️ Doctor Panel</h2>
+          <input style={styles.input} placeholder="Patient Address" onChange={e => setPatientAddress(e.target.value)} />
+          <input style={styles.input} placeholder="Patient Name" onChange={e => setPatientName(e.target.value)} />
+          <input style={styles.input} type="number" placeholder="Age" onChange={e => setPatientAge(e.target.value)} />
+          <input style={styles.input} placeholder="Disease" onChange={e => setDisease(e.target.value)} />
+          <button style={styles.button} onClick={addPatient}>Add Patient</button>
+        </div>
+
+        {/* PATIENT */}
+        <div style={styles.card}>
+          <h2>🧑‍⚕️ Patient Panel</h2>
+          <button style={styles.button} onClick={getMyRecord}>View My Record</button>
+          {result && <p style={styles.result}>{result}</p>}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+// ---------------- STYLES ----------------
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f4f6f8",
+    padding: "30px",
+    fontFamily: "Segoe UI, sans-serif"
+  },
+  title: { textAlign: "center" },
+  account: { textAlign: "center", fontSize: "14px" },
+  address: { fontSize: "12px", wordBreak: "break-all" },
+  container: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    gap: "20px",
+    marginTop: "30px"
+  },
+  card: {
+    background: "#fff",
+    padding: "20px",
+    borderRadius: "10px",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
+  },
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "10px",
+    borderRadius: "6px",
+    border: "1px solid #ccc"
+  },
+  button: {
+    width: "100%",
+    padding: "10px",
+    background: "#4f46e5",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer"
+  },
+  result: {
+    marginTop: "10px",
+    padding: "10px",
+    background: "#eef2ff",
+    borderRadius: "6px",
+    fontSize: "14px"
+  }
+};
+0x1268228d26c068aabF6A6B504e23D9b945E84569

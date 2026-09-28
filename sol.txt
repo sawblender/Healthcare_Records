@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract Healthcare {
+
+    struct Patient {
+        string name;
+        uint age;
+        string disease;
+        bool exists;
+    }
+
+    mapping(address => Patient) private patients;
+
+    function addPatient(
+        address _patient,
+        string memory _name,
+        uint _age,
+        string memory _disease
+    ) public {
+        patients[_patient] = Patient(
+            _name,
+            _age,
+            _disease,
+            true
+        );
+    }
+
+    function patientExists(address _patient)
+        public
+        view
+        returns (bool)
+    {
+        return patients[_patient].exists;
+    }
+
+    function getPatientName(address _patient)
+        public
+        view
+        returns (string memory)
+    {
+        require(patients[_patient].exists, "Patient not found");
+        return patients[_patient].name;
+    }
+
+    function getPatientAge(address _patient)
+        public
+        view
+        returns (uint)
+    {
+        require(patients[_patient].exists, "Patient not found");
+        return patients[_patient].age;
+    }
+
+    function getPatientDisease(address _patient)
+        public
+        view
+        returns (string memory)
+    {
+        require(patients[_patient].exists, "Patient not found");
+        return patients[_patient].disease;
+    }
+}
